@@ -433,6 +433,24 @@ def map_response_to_fc(response_variable):
     return RESPONSE_TO_FC.get(response_variable)
 
 
+def _predict_week(model, X_test_week, model_feature_names):
+    """Predict each day in a forecast week one row at a time.
+
+    The features for the test week may not contain every column the booster
+    was trained on (some interaction features can be missing on the boundary
+    weeks); fill them with zero, then reorder to match the booster.
+    """
+    predictions = []
+    for i in range(len(X_test_week)):
+        current_features = X_test_week.iloc[[i]].copy()
+        missing_cols = set(model_feature_names) - set(current_features.columns)
+        for col in missing_cols:
+            current_features[col] = 0
+        current_features = current_features[model_feature_names].astype(float)
+        predictions.append(model.predict(current_features.values)[0])
+    return np.array(predictions)
+
+
 def train_and_forecast(
     df,
     response_variable,
@@ -526,17 +544,7 @@ def train_and_forecast(
             columns=["Date", response_variable], errors="ignore"
         )
         X_test_week = safe_forward_fill(X_test_week)
-        predictions = []
-        for i in range(len(test_week_df)):
-            current_features = X_test_week.iloc[[i]].copy()
-            missing_cols = set(model_feature_names) - set(current_features.columns)
-            for col in missing_cols:
-                current_features[col] = 0
-            current_features = current_features[model_feature_names].astype(float)
-            y_pred = model_all.predict(current_features.values)[0]
-            predictions.append(y_pred)
-
-        predictions = np.array(predictions)
+        predictions = _predict_week(model_all, X_test_week, model_feature_names)
         start_date = test_week_df["Date"].iloc[0]
         end_date = test_week_df["Date"].iloc[-1]
 
