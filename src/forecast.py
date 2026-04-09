@@ -353,7 +353,10 @@ def train_model(X_train,y_train,n_trials=50):
             scores.append(mae)
         return np.mean(scores)
 
-    study=optuna.create_study(direction='minimize')
+    study=optuna.create_study(
+        direction='minimize',
+        sampler=optuna.samplers.TPESampler(seed=42),
+    )
     study.optimize(objective,n_trials=n_trials)
     best_params=study.best_params
     print(f"Best MAE from Optuna: {study.best_value:.2f}")
