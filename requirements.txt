@@ -10,3 +10,6 @@ matplotlib>=3.7
 streamlit>=1.30
 plotly>=5.18
 statsmodels>=0.14
+
+# Tests
+pytest>=8.0

@@ -9,6 +9,9 @@ env/
 # Notebooks
 .ipynb_checkpoints/
 
+# pytest
+.pytest_cache/
+
 # IDE
 .vscode/
 .idea/
