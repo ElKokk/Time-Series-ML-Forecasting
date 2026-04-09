@@ -24,6 +24,8 @@ results/
 *.png
 *.jpg
 *.jpeg
+!docs/*.png
+!docs/*.jpg
 
 # Data (keep sample data tracked explicitly via !sample_data/)
 *.csv

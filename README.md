@@ -11,6 +11,14 @@ intervals on every metric, and SHAP explanations exported per day. Performance
 is benchmarked against the existing in-house forecast that the operations team
 relies on today.
 
+![Recursive forecasting timeline](docs/recursive_forecasting.png)
+
+*Standing at the end of the available data (17-08-2024), the model rolls
+forward one week at a time. Each week's predictions are folded back into the
+history as if they were observed actuals before the next week is forecast,
+so by the time the model reaches the "week of interest" it has produced two
+weeks of synthetic history to lean on.*
+
 ## Headline results
 
 Mean Absolute Percentage Error on the held-out forecast horizon, model vs. the
@@ -26,6 +34,13 @@ existing forecast in production:
 The model wins on three of the four product groups. Fresh is the one category
 where the existing baseline is still slightly better — see the *Limitations*
 section below for the reasons.
+
+![Week 1 and week 2 forecast for the Dry category](docs/forecasting_results_first2_weeks.png)
+
+*Actual inbound vs the model's prediction vs the existing in-house forecast
+for the Dry category, weeks 1 and 2 of the recursive horizon. The model
+tracks the weekly peak more closely than the existing baseline, which is
+where most of the MAPE improvement on Dry comes from.*
 
 ## Repository layout
 
