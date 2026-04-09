@@ -85,6 +85,7 @@ force plots, feature importances and the bootstrap confidence intervals into
 | `--epochs`         |      50 | Number of Optuna trials.                             |
 | `--forecast_weeks` |       3 | Number of weeks to roll forward through.             |
 | `--output_dir`     |     `.` | Where artefacts (CSVs, plots, SHAP) are written.     |
+| `--device`         |   `cpu` | XGBoost device. Pass `cuda` to use a GPU build.      |
 
 ## How the model works
 
@@ -121,12 +122,17 @@ the merged predictions CSV and exposes:
 - Time-series decomposition (additive, period 7) for any selected metric.
 - A model-vs-existing performance table.
 
-It expects the CSVs in the working directory it is launched from, so the
-simplest workflow is:
+From a clean checkout it just works against the bundled sample data:
 
 ```bash
-cd sample_data && streamlit run ../src/dashboard.py
+streamlit run src/dashboard.py
 ```
+
+The dashboard looks for `combined_for_model2.csv`, `Merged_Predictions_Data.csv`
+and `headline_metrics.csv` in the current working directory first, and falls
+back to `sample_data/` if they are not there. To run it against real data,
+launch streamlit from a directory that contains your own copies of those
+files.
 
 ## Limitations and next steps
 
@@ -141,9 +147,6 @@ A few things I would change or extend if this were continued:
   cleaner to factor the feature pipeline into a `sklearn` transformer and run
   it inside a `Pipeline` so that train/test contamination is impossible by
   construction.
-- **GPU is hardcoded.** The Optuna objective sets `device="cuda"`. Running on
-  CPU requires removing that flag — a `--gpu/--cpu` switch would be a
-  five-line fix.
 - **No persisted model.** Each run retrains from scratch. For a real
   deployment the best Optuna trial would be serialized and reloaded.
 
