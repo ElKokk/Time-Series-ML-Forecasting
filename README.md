@@ -1,35 +1,156 @@
+# Delhaize Inbound Forecasting
+
+A short-horizon forecasting pipeline for daily inbound volumes at a Delhaize
+distribution centre. The model predicts one week of inbound with a **two-week
+lead time** — i.e. on day *T* it forecasts days *T+14* through *T+19* — so
+operations have enough notice to plan staffing, dock slots and capacity.
+
+The pipeline is built around a recursive XGBoost regressor, hyperparameter
+search with Optuna on time-series cross-validation folds, bootstrap confidence
+intervals on every metric, and SHAP explanations exported per day. Performance
+is benchmarked against the existing in-house forecast that the operations team
+relies on today.
+
+## Headline results
+
+Mean Absolute Percentage Error on the held-out forecast horizon, model vs. the
+existing forecast in production:
+
+| Category   | Model MAPE | Existing MAPE | Δ accuracy |
+|------------|-----------:|--------------:|-----------:|
+| Dry        |     9.83 % |       12.38 % |   **+2.55 %** |
+| Frozen     |    17.17 % |       21.12 % |   **+3.95 %** |
+| Ultrafresh |    23.38 % |       26.08 % |   **+2.70 %** |
+| Fresh      |     6.42 % |        5.06 % |       −1.36 % |
+
+The model wins on three of the four product groups. Fresh is the one category
+where the existing baseline is still slightly better — see the *Limitations*
+section below for the reasons.
+
+## Repository layout
+
+```
 .
+├── src/
+│   ├── forecast.py             # training + recursive forecasting CLI
+│   └── dashboard.py            # Streamlit dashboard
+├── scripts/
+│   └── generate_synthetic_data.py
+├── sample_data/                # synthetic CSVs so the project is runnable
+│   ├── combined_for_model2.csv
+│   └── Merged_Predictions_Data.csv
+├── docs/
+│   └── final_presentation.pptx
+├── requirements.txt
+├── LICENSE
+└── README.md
+```
 
+The real Delhaize dataset is confidential and is **not** included. The CSVs
+under `sample_data/` are produced by `scripts/generate_synthetic_data.py` and
+follow the exact same schema, so every command below works out of the box.
 
+## Quick start
 
-###FORECASTING SOFTWARE ####
---------------------------------------------
-#### FOR FINAL_MODEL.3.1.py ####
-PRE-REQUISITES
+```bash
+# 1. Install dependencies (Python 3.9+ recommended)
+pip install -r requirements.txt
 
+# 2. (Optional) regenerate the synthetic dataset
+python scripts/generate_synthetic_data.py
 
-Python installed (version 3.7 or later). Install the following Python packages
+# 3. Train and forecast — small run for a smoke test
+python src/forecast.py \
+    --dataset sample_data/combined_for_model2.csv \
+    --response "Dry Actuals" \
+    --epochs 1 \
+    --forecast_weeks 1 \
+    --output_dir results/
 
-pip install pandas numpy xgboost scikit-learn optuna matplotlib shap
+# 4. Launch the dashboard
+streamlit run src/dashboard.py
+```
 
------------------------------------------------------~
+A realistic run uses `--epochs 50 --forecast_weeks 3`. The script writes the
+predictions, the actual-vs-predicted plot, the SHAP beeswarm, per-day SHAP
+force plots, feature importances and the bootstrap confidence intervals into
+`--output_dir`.
 
+### Forecast CLI arguments
 
-----------  python script_name.py --dataset PATH_TO_CSV --response RESPONSE_VARIABLE --epochs NUM_TRIALS --output_dir OUTPUT_DIR --forecast_weeks NUM_WEEKS   ----------
+| Flag               | Default | Description                                          |
+|--------------------|--------:|------------------------------------------------------|
+| `--dataset`        |       — | Path to the input CSV.                               |
+| `--response`       |       — | Target column (`Dry Actuals`, `Fresh`, `Ultrafresh`, `Frozen`, `Total Inbound`). |
+| `--epochs`         |      50 | Number of Optuna trials.                             |
+| `--forecast_weeks` |       3 | Number of weeks to roll forward through.             |
+| `--output_dir`     |     `.` | Where artefacts (CSVs, plots, SHAP) are written.     |
 
+## How the model works
 
-Arguments:
+A few things worth highlighting if you read `src/forecast.py`:
 
---dataset: Path to the input dataset (CSV file).
+- **Recursive multi-week forecasting.** Each week is trained on everything
+  available up to its start, predicted, and then folded back into the
+  history before training the next week. The lag features are restricted to
+  `[6, 7, 8, 14, 16, 21]` so that nothing inside the 2-week lead window is
+  ever used as input.
+- **Feature engineering.** Polynomial time index, Fourier seasonality
+  (period 6, order 3), per-weekday rolling and EMA means, days-since-last-peak,
+  a two-peak weekly pattern, and interactions between lagged response values
+  and `Day_Monday`, ISO week, and `days_since_last_peak`.
+- **Optuna over time-series CV.** Hyperparameters are searched with
+  `optuna.create_study(direction="minimize")` evaluated through a 5-split
+  `TimeSeriesSplit` so the search never leaks future information.
+- **Bootstrap confidence intervals.** MAE, RMSE and MAPE each get a 95% CI
+  from 5 000 bootstrap resamples, which makes the comparison against the
+  existing forecast meaningful instead of a single-number coin toss.
+- **SHAP explanations per forecast day.** A summary beeswarm plus a force
+  plot for each predicted day, plus the raw SHAP values exported as CSV so
+  the operations team can audit individual predictions.
 
---response: The name of the column containing the target variable.
+## Dashboard
 
---epochs: (Optional) Number of trials for hyperparameter tuning. Default is 50.
+`src/dashboard.py` is a small Streamlit app that loads the inbound CSV and
+the merged predictions CSV and exposes:
 
---output_dir: (Optional) Directory where results will be saved. Default is the current directory.
+- An overview of the actuals and the forecast horizon.
+- Trend analysis with toggleable categories.
+- Promo activity overlays.
+- Summary statistics, histograms and box plots per category.
+- Time-series decomposition (additive, period 7) for any selected metric.
+- A model-vs-existing performance table.
 
---forecast_weeks: (Optional) Number of weeks to forecast. Default is 3.
+It expects the CSVs in the working directory it is launched from, so the
+simplest workflow is:
 
-EXAMPLE USAGE:
+```bash
+cd sample_data && streamlit run ../src/dashboard.py
+```
 
-python FINAL_MODEL_3.1.py --dataset 'combined_for_model2.csv' --response "Dry Actuals" --epochs 1 --output_dir 'RESULTS' --forecast_weeks 3
+## Limitations and next steps
+
+A few things I would change or extend if this were continued:
+
+- **Fresh is still hard.** The existing baseline beats the model by 1.36 pp on
+  Fresh, and the wide MAPE confidence interval on Ultrafresh
+  (`[12.03 %, 40.30 %]`) shows how thin the signal gets on the more volatile
+  categories. Both would benefit from more granular promo and weather
+  features.
+- **The recursive loop rebuilds features in-place.** It works, but it would be
+  cleaner to factor the feature pipeline into a `sklearn` transformer and run
+  it inside a `Pipeline` so that train/test contamination is impossible by
+  construction.
+- **GPU is hardcoded.** The Optuna objective sets `device="cuda"`. Running on
+  CPU requires removing that flag — a `--gpu/--cpu` switch would be a
+  five-line fix.
+- **No persisted model.** Each run retrains from scratch. For a real
+  deployment the best Optuna trial would be serialized and reloaded.
+
+## Author
+
+Eleftherios Kokkinis
+
+## License
+
+MIT — see [LICENSE](LICENSE).
