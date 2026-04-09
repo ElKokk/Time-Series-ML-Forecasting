@@ -433,6 +433,49 @@ def map_response_to_fc(response_variable):
     return RESPONSE_TO_FC.get(response_variable)
 
 
+def _save_actual_vs_predicted_plot(
+    week_pred_df, response_variable, fc_column, week_num, output_dir
+):
+    """Plot actual vs model prediction (and existing forecast if available)."""
+    safe_name = response_variable.replace(" ", "_")
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(
+        week_pred_df["Date"],
+        week_pred_df["Original_Actual"],
+        label="Actual",
+        marker="o",
+    )
+    plt.plot(
+        week_pred_df["Date"],
+        week_pred_df["Model_Prediction"],
+        label="Prediction",
+        linestyle="--",
+        marker="x",
+    )
+    if "Existing_Forecast" in week_pred_df.columns:
+        plt.plot(
+            week_pred_df["Date"],
+            week_pred_df["Existing_Forecast"],
+            label=f"Existing {fc_column}",
+            linestyle=":",
+            marker="s",
+        )
+    plt.title(f"Week {week_num}: Actual vs Predicted vs Existing")
+    plt.xlabel("Date")
+    plt.ylabel(response_variable)
+    plt.xticks(rotation=45)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plot_path = os.path.join(
+        output_dir, f"actual_vs_predicted_week_{week_num}_{safe_name}.png"
+    )
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Plot for Week {week_num} saved to: {plot_path}")
+
+
 def _save_shap_artifacts(
     model,
     test_week_df,
@@ -665,42 +708,9 @@ def train_and_forecast(
         week_pred_df.to_csv(week_pred_csv, index=False)
         print(f"Predictions for Week {week_num} saved to: {week_pred_csv}")
 
-        plt.figure(figsize=(12, 6))
-        plt.plot(
-            week_pred_df["Date"],
-            week_pred_df["Original_Actual"],
-            label="Actual",
-            marker="o",
+        _save_actual_vs_predicted_plot(
+            week_pred_df, response_variable, fc_column, week_num, output_dir
         )
-        plt.plot(
-            week_pred_df["Date"],
-            week_pred_df["Model_Prediction"],
-            label="Prediction",
-            linestyle="--",
-            marker="x",
-        )
-        if fc_available and "Existing_Forecast" in week_pred_df.columns:
-            plt.plot(
-                week_pred_df["Date"],
-                week_pred_df["Existing_Forecast"],
-                label=f"Existing {fc_column}",
-                linestyle=":",
-                marker="s",
-            )
-        plt.title(f"Week {week_num}: Actual vs Predicted vs Existing")
-        plt.xlabel("Date")
-        plt.ylabel(response_variable)
-        plt.xticks(rotation=45)
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        week_plot_path = os.path.join(
-            output_dir,
-            f'actual_vs_predicted_week_{week_num}_{response_variable.replace(" ","_")}.png',
-        )
-        plt.savefig(week_plot_path)
-        plt.close()
-        print(f"Plot for Week {week_num} saved to: {week_plot_path}")
 
         _save_shap_artifacts(
             model=model_all,
