@@ -246,7 +246,7 @@ def create_features(df, response_variable, product_cols):
     df=add_fourier_terms(df,period=6,order=3)
     df=add_peak_features(df,response_variable)
 
-    if not pd.api.types.is_categorical_dtype(df['Day of Week']):
+    if not isinstance(df['Day of Week'].dtype, pd.CategoricalDtype):
         df['Day of Week']=pd.Categorical(df['Day of Week'],categories=day_names,ordered=True)
 
     df['rolling_mean_same_day_4weeks']=df.groupby('Day of Week')[response_variable].transform(
@@ -302,7 +302,7 @@ def create_features(df, response_variable, product_cols):
     df.replace([np.inf,-np.inf],0,inplace=True)
     df=safe_forward_fill(df)
 
-    if pd.api.types.is_categorical_dtype(df['Day of Week']):
+    if isinstance(df['Day of Week'].dtype, pd.CategoricalDtype):
         df['Day of Week']=df['Day of Week'].cat.codes
     if 'Prev Day Name' in df.columns:
         df['Prev Day Name']=df['Prev Day Name'].astype('category').cat.codes
