@@ -1,12 +1,28 @@
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
+import warnings
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 from plotly.subplots import make_subplots
 from statsmodels.tsa.seasonal import seasonal_decompose
-import warnings
+
 warnings.filterwarnings("ignore")
+
+# Resolve data files relative to the project root rather than the working
+# directory streamlit was launched from.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SAMPLE_DATA_DIR = PROJECT_ROOT / "sample_data"
+
+
+def _resolve_data_path(filename: str) -> Path:
+    """Look for ``filename`` in the cwd first, then in sample_data/."""
+    cwd_candidate = Path.cwd() / filename
+    if cwd_candidate.exists():
+        return cwd_candidate
+    return SAMPLE_DATA_DIR / filename
 
 # --------------------------------------------------------------------------
 # INITIAL PAGE CONFIG
@@ -125,20 +141,25 @@ st.markdown(
 # --------------------------------------------------------------------------
 @st.cache_data
 def load_data():
-    file_path = 'combined_for_model2.csv'
+    file_path = _resolve_data_path("combined_for_model2.csv")
     data = pd.read_csv(file_path)
-    data['Date'] = pd.to_datetime(data['Date'])
-    data['Date'] = data['Date'].dt.tz_localize(None)
-    data.rename(columns=lambda x: x.replace('Fc', 'old prediction') if 'Fc' in x else x, inplace=True)
+    data["Date"] = pd.to_datetime(data["Date"]).dt.tz_localize(None)
+    data.rename(
+        columns=lambda x: x.replace("Fc", "old prediction") if "Fc" in x else x,
+        inplace=True,
+    )
     return data
+
 
 @st.cache_data
 def load_predictions():
-    predictions_file_path = 'Merged_Predictions_Data.csv'
-    predictions_data = pd.read_csv(predictions_file_path)
-    predictions_data['Date'] = pd.to_datetime(predictions_data['Date'], dayfirst=True, errors='coerce')
-    if predictions_data['Date'].dtype == 'datetime64[ns, UTC]':
-        predictions_data['Date'] = predictions_data['Date'].dt.tz_localize(None)
+    file_path = _resolve_data_path("Merged_Predictions_Data.csv")
+    predictions_data = pd.read_csv(file_path)
+    predictions_data["Date"] = pd.to_datetime(
+        predictions_data["Date"], dayfirst=True, errors="coerce"
+    )
+    if predictions_data["Date"].dtype == "datetime64[ns, UTC]":
+        predictions_data["Date"] = predictions_data["Date"].dt.tz_localize(None)
     return predictions_data
 
 def calculate_metrics(actual, model_pred, existing_fc):
@@ -459,12 +480,11 @@ elif page == "Metrics":
     st.subheader("Model Performance Metrics")
 
     try:
-        metrics_df = pd.read_csv("headline_metrics.csv", dtype=str)
+        metrics_df = pd.read_csv(_resolve_data_path("headline_metrics.csv"), dtype=str)
     except FileNotFoundError:
         st.error(
-            "headline_metrics.csv not found in the current working directory. "
-            "Run the dashboard from sample_data/ or place the file alongside "
-            "your data CSVs."
+            "headline_metrics.csv not found. Place it next to the data CSVs "
+            "or under sample_data/."
         )
     else:
         # Wrap the difference column in a span so the CSS in the page header
