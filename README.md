@@ -101,9 +101,11 @@ A few things worth highlighting if you read `src/forecast.py`:
 
 - **Recursive multi-week forecasting.** Each week is trained on everything
   available up to its start, predicted, and then folded back into the
-  history before training the next week. The lag features are restricted to
-  `[6, 7, 8, 14, 16, 21]` so that nothing inside the 2-week lead window is
-  ever used as input.
+  history before training the next week. The lag features `[6, 7, 8, 14,
+  16, 21]` are all at least one work-week long, so no row uses a feature
+  derived from another row in the same forecast week. Smaller lags reach
+  into either real history (for week 1) or the model's own week-1 / week-2
+  predictions (for weeks 2 and 3) — never a real future value.
 - **Feature engineering.** Polynomial time index, Fourier seasonality
   (period 6, order 3), per-weekday rolling and EMA means, days-since-last-peak,
   a two-peak weekly pattern, and interactions between lagged response values
