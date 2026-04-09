@@ -1,15 +1,18 @@
-import pandas as pd
+import argparse
+import os
+import warnings
+from math import pi
+
+import matplotlib.pyplot as plt
 import numpy as np
+import optuna
+import pandas as pd
+import shap
 import xgboost as xgb
-from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit
-import optuna
-import matplotlib.pyplot as plt
-import os
-import shap
-from math import pi
-import warnings
+from xgboost import XGBRegressor
+
 warnings.filterwarnings('ignore')
 
 def safe_forward_fill(df):
@@ -621,9 +624,6 @@ def train_and_forecast(df,response_variable,n_trials=50,output_dir='.',n_bootstr
     }
 
 if __name__=='__main__':
-    import argparse
-    import os
-
     parser=argparse.ArgumentParser(description='Train and recursively forecast, ensuring only one set of lagged response variables and removing response_variable_orig.')
     parser.add_argument('--dataset',type=str,required=True,help='Path to dataset CSV file.')
     parser.add_argument('--response',type=str,required=True,help='Response variable to predict.')
