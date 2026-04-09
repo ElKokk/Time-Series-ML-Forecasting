@@ -1,5 +1,7 @@
 # Delhaize Inbound Forecasting
 
+[![tests](https://github.com/ElKokk/delhaize_PRED/actions/workflows/tests.yml/badge.svg)](https://github.com/ElKokk/delhaize_PRED/actions/workflows/tests.yml)
+
 A short-horizon forecasting pipeline for daily inbound volumes at a Delhaize
 distribution centre. The model predicts one week of inbound with a **two-week
 lead time** — i.e. on day *T* it forecasts days *T+14* through *T+19* — so
