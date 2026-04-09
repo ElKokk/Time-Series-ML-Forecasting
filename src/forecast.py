@@ -433,6 +433,84 @@ def map_response_to_fc(response_variable):
     return RESPONSE_TO_FC.get(response_variable)
 
 
+def _save_shap_artifacts(
+    model,
+    test_week_df,
+    model_feature_names,
+    predictions,
+    actuals,
+    response_variable,
+    week_num,
+    output_dir,
+):
+    """Compute SHAP values for a forecast week and dump every artifact to disk.
+
+    Saves the beeswarm summary, a per-day force plot, and the raw SHAP values
+    as a CSV per day. Behaviour matches the original inline block exactly.
+    """
+    safe_name = response_variable.replace(" ", "_")
+
+    explainer = shap.Explainer(model)
+    X_test_full = safe_forward_fill(
+        test_week_df.drop(columns=["Date", response_variable], errors="ignore")
+    )
+    missing_cols = set(model_feature_names) - set(X_test_full.columns)
+    for col in missing_cols:
+        X_test_full[col] = 0
+    X_test_full = X_test_full[model_feature_names].astype(float)
+    shap_values_week = explainer(X_test_full)
+
+    plt.figure(figsize=(12, 8))
+    shap.summary_plot(
+        shap_values_week.values, X_test_full, plot_type="dot", show=False
+    )
+    shap_summary_path = os.path.join(
+        output_dir, f"shap_summary_beeswarm_week_{week_num}_{safe_name}.png"
+    )
+    plt.tight_layout()
+    plt.savefig(shap_summary_path, bbox_inches="tight")
+    plt.close()
+    print(f"SHAP summary beeswarm for Week {week_num} saved to: {shap_summary_path}")
+
+    for i in range(len(predictions)):
+        day_date = test_week_df["Date"].iloc[i]
+        day_instance = X_test_full.iloc[[i]]
+        day_shap = explainer(day_instance)
+
+        abs_values = np.abs(day_shap.values[0, :])
+        top5_inds = np.argsort(abs_values)[-5:]
+        day_shap_values_top5 = day_shap.values[0, top5_inds]
+        day_instance_top5 = day_instance.iloc[:, top5_inds]
+
+        force_plot_path = os.path.join(
+            output_dir, f"shap_force_plot_week_{week_num}_day_{i+1}_{safe_name}.png"
+        )
+        shap.force_plot(
+            explainer.expected_value,
+            day_shap_values_top5,
+            day_instance_top5,
+            matplotlib=True,
+            show=False,
+        )
+        plt.savefig(force_plot_path, bbox_inches="tight")
+        plt.close()
+        print(
+            f"SHAP force plot for Week {week_num}, Day {i+1} "
+            f"({day_date.date()}) saved to: {force_plot_path}"
+        )
+
+        day_shap_df = pd.DataFrame(day_shap.values, columns=X_test_full.columns)
+        day_shap_df["Model_Prediction"] = predictions[i]
+        day_shap_df["Original_Actual"] = actuals[i]
+        day_shap_csv_path = os.path.join(
+            output_dir, f"shap_values_week_{week_num}_day_{i+1}_{safe_name}.csv"
+        )
+        day_shap_df.to_csv(day_shap_csv_path, index=False)
+        print(
+            f"SHAP values for Week {week_num}, Day {i+1} exported to: {day_shap_csv_path}"
+        )
+
+
 def _predict_week(model, X_test_week, model_feature_names):
     """Predict each day in a forecast week one row at a time.
 
@@ -624,69 +702,16 @@ def train_and_forecast(
         plt.close()
         print(f"Plot for Week {week_num} saved to: {week_plot_path}")
 
-        explainer = shap.Explainer(model_all)
-        X_test_full = safe_forward_fill(
-            test_week_df.drop(columns=["Date", response_variable], errors="ignore")
+        _save_shap_artifacts(
+            model=model_all,
+            test_week_df=test_week_df,
+            model_feature_names=model_feature_names,
+            predictions=predictions,
+            actuals=original_actuals_week,
+            response_variable=response_variable,
+            week_num=week_num,
+            output_dir=output_dir,
         )
-        missing_cols = set(model_feature_names) - set(X_test_full.columns)
-        for col in missing_cols:
-            X_test_full[col] = 0
-        X_test_full = X_test_full[model_feature_names].astype(float)
-        shap_values_week = explainer(X_test_full)
-
-        plt.figure(figsize=(12, 8))
-        shap.summary_plot(
-            shap_values_week.values, X_test_full, plot_type="dot", show=False
-        )
-        shap_summary_path = os.path.join(
-            output_dir,
-            f'shap_summary_beeswarm_week_{week_num}_{response_variable.replace(" ","_")}.png',
-        )
-        plt.tight_layout()
-        plt.savefig(shap_summary_path, bbox_inches="tight")
-        plt.close()
-        print(
-            f"SHAP summary beeswarm for Week {week_num} saved to: {shap_summary_path}"
-        )
-
-        for i in range(len(predictions)):
-            day_date = test_week_df["Date"].iloc[i]
-            day_instance = X_test_full.iloc[[i]]
-            day_shap = explainer(day_instance)
-
-            abs_values = np.abs(day_shap.values[0, :])
-            top5_inds = np.argsort(abs_values)[-5:]
-            day_shap_values_top5 = day_shap.values[0, top5_inds]
-            day_instance_top5 = day_instance.iloc[:, top5_inds]
-
-            force_plot_path = os.path.join(
-                output_dir,
-                f'shap_force_plot_week_{week_num}_day_{i+1}_{response_variable.replace(" ","_")}.png',
-            )
-            shap.force_plot(
-                explainer.expected_value,
-                day_shap_values_top5,
-                day_instance_top5,
-                matplotlib=True,
-                show=False,
-            )
-            plt.savefig(force_plot_path, bbox_inches="tight")
-            plt.close()
-            print(
-                f"SHAP force plot for Week {week_num}, Day {i+1} ({day_date.date()}) saved to: {force_plot_path}"
-            )
-
-            day_shap_df = pd.DataFrame(day_shap.values, columns=X_test_full.columns)
-            day_shap_df["Model_Prediction"] = predictions[i]
-            day_shap_df["Original_Actual"] = original_actuals_week[i]
-            day_shap_csv_path = os.path.join(
-                output_dir,
-                f'shap_values_week_{week_num}_day_{i+1}_{response_variable.replace(" ","_")}.csv',
-            )
-            day_shap_df.to_csv(day_shap_csv_path, index=False)
-            print(
-                f"SHAP values for Week {week_num}, Day {i+1} exported to: {day_shap_csv_path}"
-            )
 
         fi = model_all.feature_importances_
         importance_df = pd.DataFrame(
