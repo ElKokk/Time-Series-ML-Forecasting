@@ -316,7 +316,7 @@ def create_features(df, response_variable, product_cols):
 
     return df
 
-def train_model(X_train,y_train,n_trials=50):
+def train_model(X_train,y_train,n_trials=50,device='cpu'):
     def objective(trial):
         params={
             'n_estimators':trial.suggest_int('n_estimators',20,700),
@@ -331,7 +331,7 @@ def train_model(X_train,y_train,n_trials=50):
             'objective':'reg:squarederror',
             'random_state':42,
             'tree_method':'hist',
-            'device':'cuda',
+            'device':device,
             'verbosity':0
         }
 
@@ -370,7 +370,7 @@ def train_model(X_train,y_train,n_trials=50):
     X_train=safe_forward_fill(X_train)
     y_train=y_train.ffill().fillna(y_train.median())
 
-    final_model=XGBRegressor(**best_params,objective='reg:squarederror',random_state=42,tree_method='hist',verbosity=0)
+    final_model=XGBRegressor(**best_params,objective='reg:squarederror',random_state=42,tree_method='hist',device=device,verbosity=0)
     final_model.fit(X_train,y_train,eval_set=[(X_train,y_train)],verbose=False)
     return final_model,best_params
 
@@ -384,7 +384,7 @@ def map_response_to_fc(response_variable):
     }
     return mapping.get(response_variable,None)
 
-def train_and_forecast(df,response_variable,n_trials=50,output_dir='.',n_bootstraps=5000,ci_level=95,forecast_weeks=3):
+def train_and_forecast(df,response_variable,n_trials=50,output_dir='.',n_bootstraps=5000,ci_level=95,forecast_weeks=3,device='cpu'):
     forecast_days_per_week=6
 
     df['Date']=pd.to_datetime(df['Date'],errors='coerce').dt.tz_localize(None)
@@ -434,7 +434,7 @@ def train_and_forecast(df,response_variable,n_trials=50,output_dir='.',n_bootstr
         X_train_full=safe_forward_fill(X_train_full)
         y_train_full=y_train_full.ffill().fillna(y_train_full.median())
 
-        model_all,params_all=train_model(X_train_full,y_train_full,n_trials=n_trials)
+        model_all,params_all=train_model(X_train_full,y_train_full,n_trials=n_trials,device=device)
         model_feature_names=model_all.get_booster().feature_names
 
         test_week_df=df.iloc[test_start:test_end].copy().reset_index(drop=True)
@@ -633,6 +633,7 @@ if __name__=='__main__':
     parser.add_argument('--epochs',type=int,default=50,help='Number of trials for hyperparameter optimization.')
     parser.add_argument('--output_dir',type=str,default='.',help='Directory for outputs.')
     parser.add_argument('--forecast_weeks',type=int,default=3,help='Number of weeks to forecast.')
+    parser.add_argument('--device',type=str,default='cpu',choices=['cpu','cuda'],help='XGBoost device. Defaults to cpu.')
 
     args=parser.parse_args()
 
@@ -653,7 +654,8 @@ if __name__=='__main__':
         output_dir=output_dir,
         n_bootstraps=5000,
         ci_level=95,
-        forecast_weeks=forecast_weeks
+        forecast_weeks=forecast_weeks,
+        device=args.device,
     )
 
     ci_level=95
