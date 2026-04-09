@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Forecast outputs
+results/
+*.png
+*.jpg
+*.jpeg
+
+# Data (keep sample data tracked explicitly via !sample_data/)
+*.csv
+!sample_data/*.csv
+
+# Optuna / model artifacts
+*.db
+*.pkl
+*.joblib
