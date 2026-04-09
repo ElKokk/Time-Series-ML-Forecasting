@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
-import base64
 from plotly.subplots import make_subplots
 from statsmodels.tsa.seasonal import seasonal_decompose
 import warnings
@@ -124,14 +123,6 @@ st.markdown(
 # --------------------------------------------------------------------------
 # FUNCTIONS
 # --------------------------------------------------------------------------
-def encode_image(image_path):
-    try:
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode("utf-8")
-    except FileNotFoundError:
-        st.error(f"File not found: {image_path}")
-        return None
-
 @st.cache_data
 def load_data():
     file_path = 'combined_for_model2.csv'
@@ -190,34 +181,8 @@ prediction_columns = [c for c in all_prediction_cols if (c.startswith("Model_Pre
 # --------------------------------------------------------------------------
 # HEADER
 # --------------------------------------------------------------------------
-logo_path = 'output-onlinepngtools.png'
-left_image_path = 'elef.png'
-right_image_path = 'rachelle.jpg'
-
-encoded_logo = encode_image(logo_path)
-encoded_left_image = encode_image(left_image_path)
-encoded_right_image = encode_image(right_image_path)
-
 st.markdown("<h1 style='text-align: center;'>Data Horizon Analytics</h1>", unsafe_allow_html=True)
-
-st.markdown(
-    f"""
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div style="text-align: center;">
-            <img src='data:image/png;base64,{encoded_left_image}' alt='Left Image' width='100'>
-            <h2 style="text-align: center;">Eleftherios Kokkinis</h2>
-        </div>
-        <div style="text-align: center;">
-            <img src='data:image/png;base64,{encoded_logo}' alt='Logo' width='200'>
-        </div>
-        <div style="text-align: center;">
-            <img src='data:image/png;base64,{encoded_right_image}' alt='Right Image' width='220'>
-            <h2 style="text-align: center;">Rachelle Natumanya</h2>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("<h4 style='text-align: center;'>Eleftherios Kokkinis</h4>", unsafe_allow_html=True)
 
 # --------------------------------------------------------------------------
 # SIDEBAR NAVIGATION & FILTERS
