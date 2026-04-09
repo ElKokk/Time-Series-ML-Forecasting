@@ -34,13 +34,21 @@ section below for the reasons.
 ├── src/
 │   ├── forecast.py             # training + recursive forecasting CLI
 │   └── dashboard.py            # Streamlit dashboard
+├── tests/                      # pytest suite, see "Tests" below
+│   ├── conftest.py
+│   ├── test_metrics.py
+│   ├── test_features.py
+│   ├── test_predict_week.py
+│   └── test_regression.py
 ├── scripts/
 │   └── generate_synthetic_data.py
 ├── sample_data/                # synthetic CSVs so the project is runnable
 │   ├── combined_for_model2.csv
-│   └── Merged_Predictions_Data.csv
+│   ├── Merged_Predictions_Data.csv
+│   └── headline_metrics.csv
 ├── docs/
 │   └── final_presentation.pptx
+├── pyproject.toml              # pytest config
 ├── requirements.txt
 ├── LICENSE
 └── README.md
@@ -133,6 +141,32 @@ and `headline_metrics.csv` in the current working directory first, and falls
 back to `sample_data/` if they are not there. To run it against real data,
 launch streamlit from a directory that contains your own copies of those
 files.
+
+## Tests
+
+The project ships with a small pytest suite that pins the contracts the
+forecasting pipeline depends on. Run it from the repo root:
+
+```bash
+pytest
+```
+
+Seven tests across four files, ~90 seconds end to end (most of which is the
+seeded regression test running an actual Optuna search):
+
+| File | What it pins |
+|---|---|
+| `tests/test_metrics.py` | MAE, RMSE, MAPE and R² math against hand-computed values, plus a perfect-predictor sanity check. |
+| `tests/test_features.py` | Lag-column offsets are exact (lag_k at row r equals source[r − k]) and the smallest lag offset is at least 6, so no row reaches into its own forecast week. |
+| `tests/test_predict_week.py` | The `_predict_week` helper zero-fills missing columns and reorders to the booster's column order, and handles single-row inputs. |
+| `tests/test_regression.py` | End-to-end seeded run of `train_and_forecast` against `sample_data/` produces canonical MAE/RMSE/MAPE/R² values. Exercises the recursive history-rebuild loop. |
+
+The regression test exists specifically as a safety net for refactoring the
+recursive forecast loop and the `create_features` function — both have
+intricate state coupling that the unit tests cannot catch on their own. If a
+future change is intentionally moving the modeling math, update the
+`CANONICAL_*` values in `tests/test_regression.py` and document the reason in
+the commit message.
 
 ## Limitations and next steps
 
