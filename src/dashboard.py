@@ -458,92 +458,24 @@ elif page == "Time Series Decomposition":
 elif page == "Metrics":
     st.subheader("Model Performance Metrics")
 
-    # Include Existing MAPE and Existing Accuracy columns as requested
-    # Columns: Category, MAE, RMSE, MAPE, MAPE CI, Accuracy, Existing MAPE, Existing Accuracy, Difference
-    # Data as previously given:
-
-    # DRY:
-    # Model: MAPE=9.83%, Acc=90.17%
-    # Existing: MAPE=12.38%, Acc=87.62%
-    # Diff=+2.55%
-    # MAPE CI=[7.53%, 12.29%]
-    # MAE=8198.24, RMSE=9525.85
-
-    # FROZEN:
-    # Model: MAPE=17.17%, Acc=82.83%
-    # Existing: MAPE=21.12%, Acc=78.88%
-    # Diff=+3.95%
-    # MAPE CI=[11.11%, 23.40%]
-    # MAE=1261.08, RMSE=1609.62
-
-    # ULTRAFRESH:
-    # Model: MAPE=23.38%, Acc=76.62%
-    # Existing: MAPE=26.08%, Acc=73.92%
-    # Diff=+2.70%
-    # MAPE CI=[12.03%, 40.30%]
-    # MAE=942.18, RMSE=1272.51
-
-    # FRESH:
-    # Model: MAPE=6.42%, Acc=93.58%
-    # Existing: MAPE=5.06%, Acc=94.94%
-    # Diff=-1.36%
-    # MAPE CI=[4.31%, 8.85%]
-    # MAE=4387.42, RMSE=5585.08
-
-    metrics_data = [
-        {
-            "Category": "Dry",
-            "MAE": "8198.24",
-            "RMSE": "9525.85",
-            "MAPE": "9.83%",
-            "MAPE CI": "[7.53%, 12.29%]",
-            "Accuracy": "90.17%",
-            "Existing MAPE": "12.38%",
-            "Existing Accuracy": "87.62%",
-            "Difference": "<span>+2.55%</span>"
-        },
-        {
-            "Category": "Frozen",
-            "MAE": "1261.08",
-            "RMSE": "1609.62",
-            "MAPE": "17.17%",
-            "MAPE CI": "[11.11%, 23.40%]",
-            "Accuracy": "82.83%",
-            "Existing MAPE": "21.12%",
-            "Existing Accuracy": "78.88%",
-            "Difference": "<span>+3.95%</span>"
-        },
-        {
-            "Category": "Ultrafresh",
-            "MAE": "942.18",
-            "RMSE": "1272.51",
-            "MAPE": "23.38%",
-            "MAPE CI": "[12.03%, 40.30%]",
-            "Accuracy": "76.62%",
-            "Existing MAPE": "26.08%",
-            "Existing Accuracy": "73.92%",
-            "Difference": "<span>+2.70%</span>"
-        },
-        {
-            "Category": "Fresh",
-            "MAE": "4387.42",
-            "RMSE": "5585.08",
-            "MAPE": "6.42%",
-            "MAPE CI": "[4.31%, 8.85%]",
-            "Accuracy": "93.58%",
-            "Existing MAPE": "5.06%",
-            "Existing Accuracy": "94.94%",
-            "Difference": "<span>-1.36%</span>"
-        }
-    ]
-
-    metrics_df = pd.DataFrame(metrics_data)
-    metrics_html = metrics_df.to_html(escape=False, index=False, classes='styled-table')
-    st.markdown(
-        f"""
-        <div style="width:100%; overflow-x:auto;">
-        {metrics_html}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    try:
+        metrics_df = pd.read_csv("headline_metrics.csv", dtype=str)
+    except FileNotFoundError:
+        st.error(
+            "headline_metrics.csv not found in the current working directory. "
+            "Run the dashboard from sample_data/ or place the file alongside "
+            "your data CSVs."
+        )
+    else:
+        # Wrap the difference column in a span so the CSS in the page header
+        # can style positive/negative deltas distinctively.
+        metrics_df["Difference"] = metrics_df["Difference"].apply(
+            lambda v: f"<span>{v}</span>"
+        )
+        metrics_html = metrics_df.to_html(
+            escape=False, index=False, classes="styled-table"
+        )
+        st.markdown(
+            f'<div style="width:100%; overflow-x:auto;">{metrics_html}</div>',
+            unsafe_allow_html=True,
+        )
