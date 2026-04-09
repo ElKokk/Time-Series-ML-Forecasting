@@ -15,6 +15,21 @@ from xgboost import XGBRegressor
 
 warnings.filterwarnings('ignore')
 
+# --- Delhaize-specific column groups ----------------------------------------
+# Mapping from each response variable we forecast to the column that holds the
+# operations team's existing forecast for the same target.
+RESPONSE_TO_FC = {
+    'Dry Actuals': 'Dry Fc',
+    'Fresh': 'Fresh Fc',
+    'Ultrafresh': 'Ultrafresh Fc',
+    'Frozen': 'Frozen Fc',
+    'Total Inbound': 'Total Inbound Fc',
+}
+# Every existing-forecast column. Always dropped from the feature matrix so
+# the model never trains on its own benchmark.
+ALL_FC_COLUMNS = list(RESPONSE_TO_FC.values()) + ['Pre-orders Fc']
+DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
 def safe_forward_fill(df):
     """
     Handles missing values in numeric columns by applying forward-fill followed by median imputation.
@@ -243,14 +258,12 @@ def create_features(df, response_variable, product_cols):
     Returns:
         pd.DataFrame: DataFrame with additional engineered features.
     """
-    day_names=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-
     df=add_polynomial_time_index(df)
     df=add_fourier_terms(df,period=6,order=3)
     df=add_peak_features(df,response_variable)
 
     if not isinstance(df['Day of Week'].dtype, pd.CategoricalDtype):
-        df['Day of Week']=pd.Categorical(df['Day of Week'],categories=day_names,ordered=True)
+        df['Day of Week']=pd.Categorical(df['Day of Week'],categories=DAY_NAMES,ordered=True)
 
     df['rolling_mean_same_day_4weeks']=df.groupby('Day of Week')[response_variable].transform(
         lambda x:x.shift(6).rolling(window=24,min_periods=1).mean()
@@ -375,14 +388,7 @@ def train_model(X_train,y_train,n_trials=50,device='cpu'):
     return final_model,best_params
 
 def map_response_to_fc(response_variable):
-    mapping={
-        'Dry Actuals':'Dry Fc',
-        'Fresh':'Fresh Fc',
-        'Ultrafresh':'Ultrafresh Fc',
-        'Frozen':'Frozen Fc',
-        'Total Inbound':'Total Inbound Fc'
-    }
-    return mapping.get(response_variable,None)
+    return RESPONSE_TO_FC.get(response_variable)
 
 def train_and_forecast(df,response_variable,n_trials=50,output_dir='.',n_bootstraps=5000,ci_level=95,forecast_weeks=3,device='cpu'):
     forecast_days_per_week=6
@@ -399,12 +405,11 @@ def train_and_forecast(df,response_variable,n_trials=50,output_dir='.',n_bootstr
     else:
         fc_values_all=None
 
-    all_fc_columns=['Dry Fc','Fresh Fc','Ultrafresh Fc','Frozen Fc','Total Inbound Fc','Pre-orders Fc']
-    drop_cols=['Date','Category','year','month','week','day_of_year','t','t2','t3']+all_fc_columns
+    drop_cols=['Date','Category','year','month','week','day_of_year','t','t2','t3']+ALL_FC_COLUMNS
     base_numeric_cols = df_original.select_dtypes(include=[np.number]).columns.tolist()
     product_cols = [c for c in base_numeric_cols if c not in drop_cols and c!=response_variable]
 
-    df = df.drop(columns=[c for c in all_fc_columns if c in df.columns], errors='ignore')
+    df = df.drop(columns=[c for c in ALL_FC_COLUMNS if c in df.columns], errors='ignore')
     if 'Category' in df.columns:
         df=df.drop('Category',axis=1,errors='ignore')
 
@@ -571,8 +576,7 @@ def train_and_forecast(df,response_variable,n_trials=50,output_dir='.',n_bootstr
         if response_orig_col in df.columns:
             df.drop(response_orig_col,axis=1,inplace=True,errors='ignore')
 
-        all_fc_columns=['Dry Fc','Fresh Fc','Ultrafresh Fc','Frozen Fc','Total Inbound Fc','Pre-orders Fc']
-        df = df.drop(columns=[c for c in all_fc_columns if c in df.columns], errors='ignore')
+        df = df.drop(columns=[c for c in ALL_FC_COLUMNS if c in df.columns], errors='ignore')
         if 'Category' in df.columns:
             df=df.drop('Category',axis=1,errors='ignore')
 
