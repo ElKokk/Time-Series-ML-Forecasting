@@ -24,25 +24,30 @@ def _resolve_data_path(filename: str) -> Path:
         return cwd_candidate
     return SAMPLE_DATA_DIR / filename
 
+
 # --------------------------------------------------------------------------
 # INITIAL PAGE CONFIG
 # --------------------------------------------------------------------------
-st.set_page_config(page_title="Data Horizon Analytics", page_icon=":bar_chart:", layout="wide")
+st.set_page_config(
+    page_title="Data Horizon Analytics", page_icon=":bar_chart:", layout="wide"
+)
 
 # --------------------------------------------------------------------------
 # THEME & STYLING
 # --------------------------------------------------------------------------
-if 'theme' not in st.session_state:
-    st.session_state['theme'] = 'light'
+if "theme" not in st.session_state:
+    st.session_state["theme"] = "light"
 
 toggle_theme = st.button("Toggle Dark/Light Mode")
 if toggle_theme:
-    st.session_state['theme'] = 'dark' if st.session_state['theme'] == 'light' else 'light'
+    st.session_state["theme"] = (
+        "dark" if st.session_state["theme"] == "light" else "light"
+    )
 
 # We do NOT change the sidebar styling based on theme. Sidebar remains vanilla on black.
-if st.session_state['theme'] == 'dark':
-    bg_color = '#000000'
-    text_color = '#FAF3E0'
+if st.session_state["theme"] == "dark":
+    bg_color = "#000000"
+    text_color = "#FAF3E0"
     base_css = f"""
     <style>
     body {{
@@ -61,8 +66,8 @@ if st.session_state['theme'] == 'dark':
     </style>
     """
 else:
-    bg_color = '#FAF3E0'
-    text_color = '#000000'
+    bg_color = "#FAF3E0"
+    text_color = "#000000"
     base_css = f"""
     <style>
     body {{
@@ -109,7 +114,7 @@ st.markdown(
     }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 # Re-apply dropdown menu text color after global rules to ensure vanilla text on black background
@@ -133,8 +138,9 @@ st.markdown(
     }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
+
 
 # --------------------------------------------------------------------------
 # FUNCTIONS
@@ -162,6 +168,7 @@ def load_predictions():
         predictions_data["Date"] = predictions_data["Date"].dt.tz_localize(None)
     return predictions_data
 
+
 def calculate_metrics(actual, model_pred, existing_fc):
     actual = np.array(actual)
     model_pred = np.array(model_pred)
@@ -172,16 +179,26 @@ def calculate_metrics(actual, model_pred, existing_fc):
         return (np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)
 
     model_mae = np.mean(np.abs(actual - model_pred))
-    model_rmse = np.sqrt(np.mean((actual - model_pred)**2))
+    model_rmse = np.sqrt(np.mean((actual - model_pred) ** 2))
     model_mape = np.mean(np.abs((actual[mask] - model_pred[mask]) / actual[mask]))
     model_accuracy = 1 - model_mape if not np.isnan(model_mape) else np.nan
 
     existing_mae = np.mean(np.abs(actual - existing_fc))
-    existing_rmse = np.sqrt(np.mean((actual - existing_fc)**2))
+    existing_rmse = np.sqrt(np.mean((actual - existing_fc) ** 2))
     existing_mape = np.mean(np.abs((actual[mask] - existing_fc[mask]) / actual[mask]))
     existing_accuracy = 1 - existing_mape if not np.isnan(existing_mape) else np.nan
 
-    return (model_mae, model_rmse, model_mape, model_accuracy, existing_mae, existing_rmse, existing_mape, existing_accuracy)
+    return (
+        model_mae,
+        model_rmse,
+        model_mape,
+        model_accuracy,
+        existing_mae,
+        existing_rmse,
+        existing_mape,
+        existing_accuracy,
+    )
+
 
 # --------------------------------------------------------------------------
 # LOAD DATA
@@ -189,21 +206,44 @@ def calculate_metrics(actual, model_pred, existing_fc):
 data = load_data()
 predictions_data = load_predictions()
 
-cols_to_remove = ['HD Total', 'Pick Capacity', 'Collect Total', 'Pre Orders', 'Category', 'Day of Week', 'pre orders old prediction']
+cols_to_remove = [
+    "HD Total",
+    "Pick Capacity",
+    "Collect Total",
+    "Pre Orders",
+    "Category",
+    "Day of Week",
+    "pre orders old prediction",
+]
 all_actual_cols = list(data.columns)
 all_prediction_cols = list(predictions_data.columns)
 
-excluded_cols = ['Date'] + cols_to_remove
-promo_columns = [c for c in all_actual_cols if 'Promo' in c and c != 'Date']
-actual_columns = [c for c in all_actual_cols if c not in excluded_cols + promo_columns and c != 'Date' and not c.startswith("Unnamed")]
+excluded_cols = ["Date"] + cols_to_remove
+promo_columns = [c for c in all_actual_cols if "Promo" in c and c != "Date"]
+actual_columns = [
+    c
+    for c in all_actual_cols
+    if c not in excluded_cols + promo_columns
+    and c != "Date"
+    and not c.startswith("Unnamed")
+]
 
-prediction_columns = [c for c in all_prediction_cols if (c.startswith("Model_Prediction_") or c.startswith("Existing_Forecast_"))]
+prediction_columns = [
+    c
+    for c in all_prediction_cols
+    if (c.startswith("Model_Prediction_") or c.startswith("Existing_Forecast_"))
+]
 
 # --------------------------------------------------------------------------
 # HEADER
 # --------------------------------------------------------------------------
-st.markdown("<h1 style='text-align: center;'>Data Horizon Analytics</h1>", unsafe_allow_html=True)
-st.markdown("<h4 style='text-align: center;'>Eleftherios Kokkinis</h4>", unsafe_allow_html=True)
+st.markdown(
+    "<h1 style='text-align: center;'>Data Horizon Analytics</h1>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    "<h4 style='text-align: center;'>Eleftherios Kokkinis</h4>", unsafe_allow_html=True
+)
 
 # --------------------------------------------------------------------------
 # SIDEBAR NAVIGATION & FILTERS
@@ -212,13 +252,21 @@ st.sidebar.title("Overview")
 st.sidebar.markdown("**Use the navigation below to explore:**")
 page = st.sidebar.radio(
     "Go to",
-    ("Overview", "Forecast Data", "Trend Analysis", "Promo Trends", "Summary Statistics", "Time Series Decomposition", "Metrics")
+    (
+        "Overview",
+        "Forecast Data",
+        "Trend Analysis",
+        "Promo Trends",
+        "Summary Statistics",
+        "Time Series Decomposition",
+        "Metrics",
+    ),
 )
 
 predictions_min_date = pd.to_datetime("2024-08-22")
 predictions_max_date = pd.to_datetime("2024-09-11")
-actual_data_min_date = data['Date'].min()
-actual_data_max_date = data['Date'].max()
+actual_data_min_date = data["Date"].min()
+actual_data_max_date = data["Date"].max()
 
 st.sidebar.header("Filters")
 
@@ -226,18 +274,21 @@ predictions_slider_range = st.sidebar.slider(
     "Select Date Range for Predictions",
     min_value=predictions_min_date.date(),
     max_value=predictions_max_date.date(),
-    value=(predictions_min_date.date(), predictions_max_date.date())
+    value=(predictions_min_date.date(), predictions_max_date.date()),
 )
 
 predictions_valid = True
-if len(predictions_slider_range) != 2 or predictions_slider_range[0] == predictions_slider_range[1]:
+if (
+    len(predictions_slider_range) != 2
+    or predictions_slider_range[0] == predictions_slider_range[1]
+):
     predictions_valid = False
 
 data_slider_range = st.sidebar.slider(
     "Select Date Range for Actuals",
     min_value=actual_data_min_date.date(),
     max_value=actual_data_max_date.date(),
-    value=(actual_data_min_date.date(), actual_data_max_date.date())
+    value=(actual_data_min_date.date(), actual_data_max_date.date()),
 )
 
 data_valid = True
@@ -246,36 +297,33 @@ if len(data_slider_range) != 2 or data_slider_range[0] == data_slider_range[1]:
 
 if predictions_valid:
     filtered_predictions = predictions_data[
-        (predictions_data['Date'] >= pd.to_datetime(predictions_slider_range[0])) &
-        (predictions_data['Date'] <= pd.to_datetime(predictions_slider_range[1]))
-        ]
+        (predictions_data["Date"] >= pd.to_datetime(predictions_slider_range[0]))
+        & (predictions_data["Date"] <= pd.to_datetime(predictions_slider_range[1]))
+    ]
 else:
     filtered_predictions = pd.DataFrame()
 
 if data_valid:
     filtered_data = data[
-        (data['Date'] >= pd.to_datetime(data_slider_range[0])) &
-        (data['Date'] <= pd.to_datetime(data_slider_range[1]))
-        ]
+        (data["Date"] >= pd.to_datetime(data_slider_range[0]))
+        & (data["Date"] <= pd.to_datetime(data_slider_range[1]))
+    ]
 else:
     filtered_data = pd.DataFrame()
 
 st.sidebar.header("Column Selections")
 
 selected_columns_predictions = st.sidebar.multiselect(
-    "Select Prediction Categories",
-    options=prediction_columns
+    "Select Prediction Categories", options=prediction_columns
 )
 
 selected_columns_data = st.sidebar.multiselect(
-    "Select Actual Inbound Metrics",
-    options=actual_columns
+    "Select Actual Inbound Metrics", options=actual_columns
 )
 
 st.sidebar.header("Promo Data Visualization")
 selected_promo_columns = st.sidebar.multiselect(
-    "Select Promo Columns",
-    options=promo_columns
+    "Select Promo Columns", options=promo_columns
 )
 
 # --------------------------------------------------------------------------
@@ -284,8 +332,7 @@ selected_promo_columns = st.sidebar.multiselect(
 
 if page == "Overview":
     st.subheader("Welcome to Data Horizon Analytics")
-    st.markdown(
-        """
+    st.markdown("""
         **Overview of the Application**
 
         This application allows you to:
@@ -306,8 +353,7 @@ if page == "Overview":
         - Hover over points in graphs to see details.
         - Filter the data based on your requirements using the sidebar filters.
         - Check summary stats to understand data distribution.
-        """
-    )
+        """)
 
 elif page == "Forecast Data":
     st.subheader("Forecasts for the Selected Period")
@@ -317,7 +363,9 @@ elif page == "Forecast Data":
         else:
             st.warning("No data available for the selected predictions date range.")
     else:
-        st.warning("Please select a valid predictions date range (at least two different dates).")
+        st.warning(
+            "Please select a valid predictions date range (at least two different dates)."
+        )
 
 elif page == "Trend Analysis":
     st.subheader("Interactive Trend Plot")
@@ -326,30 +374,44 @@ elif page == "Trend Analysis":
     elif not data_valid:
         st.warning("Please select a valid actual data date range.")
     else:
-        if (selected_columns_predictions or selected_columns_data) and not filtered_predictions.empty and not filtered_data.empty:
-            combined_data_for_plot = pd.DataFrame({'Date': pd.to_datetime([])})
+        if (
+            (selected_columns_predictions or selected_columns_data)
+            and not filtered_predictions.empty
+            and not filtered_data.empty
+        ):
+            combined_data_for_plot = pd.DataFrame({"Date": pd.to_datetime([])})
             if selected_columns_predictions:
-                temp_predictions = filtered_predictions[['Date'] + selected_columns_predictions]
-                temp_predictions = temp_predictions.melt(id_vars='Date', var_name='Category', value_name='Value')
-                temp_predictions['Type'] = 'Prediction'
-                combined_data_for_plot = pd.concat([combined_data_for_plot, temp_predictions], ignore_index=True)
+                temp_predictions = filtered_predictions[
+                    ["Date"] + selected_columns_predictions
+                ]
+                temp_predictions = temp_predictions.melt(
+                    id_vars="Date", var_name="Category", value_name="Value"
+                )
+                temp_predictions["Type"] = "Prediction"
+                combined_data_for_plot = pd.concat(
+                    [combined_data_for_plot, temp_predictions], ignore_index=True
+                )
 
             if selected_columns_data:
-                temp_actual = filtered_data[['Date'] + selected_columns_data]
-                temp_actual = temp_actual.melt(id_vars='Date', var_name='Category', value_name='Value')
-                temp_actual['Type'] = 'Actual'
-                combined_data_for_plot = pd.concat([combined_data_for_plot, temp_actual], ignore_index=True)
+                temp_actual = filtered_data[["Date"] + selected_columns_data]
+                temp_actual = temp_actual.melt(
+                    id_vars="Date", var_name="Category", value_name="Value"
+                )
+                temp_actual["Type"] = "Actual"
+                combined_data_for_plot = pd.concat(
+                    [combined_data_for_plot, temp_actual], ignore_index=True
+                )
 
             if not combined_data_for_plot.empty:
                 fig = px.line(
                     combined_data_for_plot,
-                    x='Date',
-                    y='Value',
-                    color='Category',
-                    line_dash='Type',
+                    x="Date",
+                    y="Value",
+                    color="Category",
+                    line_dash="Type",
                     title="Trends for Selected Categories",
-                    labels={'Value': 'Product Quantities', 'Date': 'Date'},
-                    hover_data={'Type': True}
+                    labels={"Value": "Product Quantities", "Date": "Date"},
+                    hover_data={"Type": True},
                 )
                 fig.update_layout(legend_title="Category and Type")
                 st.plotly_chart(fig, use_container_width=True)
@@ -364,21 +426,26 @@ elif page == "Trend Analysis":
                         sum_data[f"Prediction: {col}"] = filtered_predictions[col].sum()
 
                 if sum_data:
-                    sum_df = pd.DataFrame(list(sum_data.items()), columns=["Category", "Total Quantity"])
+                    sum_df = pd.DataFrame(
+                        list(sum_data.items()), columns=["Category", "Total Quantity"]
+                    )
                     fig_bar = px.bar(
                         sum_df,
                         x="Category",
                         y="Total Quantity",
                         color="Category",
                         title="Sum of Quantities for Selected Categories",
-                        labels={"Total Quantity": "Total Quantity", "Category": "Category"},
-                        text_auto=True
+                        labels={
+                            "Total Quantity": "Total Quantity",
+                            "Category": "Category",
+                        },
+                        text_auto=True,
                     )
                     fig_bar.update_layout(
                         xaxis_title="Category",
                         yaxis_title="Total Quantity",
                         legend_title="Category",
-                        barmode="group"
+                        barmode="group",
                     )
                     st.plotly_chart(fig_bar, use_container_width=True)
                 else:
@@ -386,7 +453,9 @@ elif page == "Trend Analysis":
             else:
                 st.info("No data to plot. Please adjust your selections.")
         else:
-            st.info("Select categories and valid date ranges for both predictions and actual data.")
+            st.info(
+                "Select categories and valid date ranges for both predictions and actual data."
+            )
 
 elif page == "Promo Trends":
     st.subheader("Promo Data Trends")
@@ -394,19 +463,23 @@ elif page == "Promo Trends":
         st.warning("Please select a valid actual data date range.")
     else:
         if selected_promo_columns and not filtered_data.empty:
-            temp_promo = filtered_data[['Date'] + selected_promo_columns]
-            temp_promo = temp_promo.melt(id_vars='Date', var_name='Promo Category', value_name='Value')
+            temp_promo = filtered_data[["Date"] + selected_promo_columns]
+            temp_promo = temp_promo.melt(
+                id_vars="Date", var_name="Promo Category", value_name="Value"
+            )
             fig_promo = px.line(
                 temp_promo,
-                x='Date',
-                y='Value',
-                color='Promo Category',
+                x="Date",
+                y="Value",
+                color="Promo Category",
                 title="Promo Trends Over Time",
-                labels={'Value': 'Promo Quantities', 'Date': 'Date'}
+                labels={"Value": "Promo Quantities", "Date": "Date"},
             )
             st.plotly_chart(fig_promo, use_container_width=True)
         else:
-            st.info("Select at least one promo column and ensure a valid actual date range.")
+            st.info(
+                "Select at least one promo column and ensure a valid actual date range."
+            )
 
 elif page == "Summary Statistics":
     st.subheader("Summary Statistics & Visualizations")
@@ -422,35 +495,38 @@ elif page == "Summary Statistics":
             temp_hist = filtered_data[selected_columns_data]
             fig_hist = go.Figure()
             for col in selected_columns_data:
-                fig_hist.add_trace(go.Histogram(
-                    x=temp_hist[col],
-                    opacity=0.4,
-                    name=col,
-                    histnorm='probability'
-                ))
+                fig_hist.add_trace(
+                    go.Histogram(
+                        x=temp_hist[col], opacity=0.4, name=col, histnorm="probability"
+                    )
+                )
             fig_hist.update_layout(
-                barmode='overlay',
-                title_text='Histogram of Selected Categories',
-                xaxis_title_text='Value',
-                yaxis_title_text='Probability',
-                legend_title_text='Categories'
+                barmode="overlay",
+                title_text="Histogram of Selected Categories",
+                xaxis_title_text="Value",
+                yaxis_title_text="Probability",
+                legend_title_text="Categories",
             )
             st.plotly_chart(fig_hist, use_container_width=True)
 
             st.subheader("Box Plots for Selected Categories")
-            temp_box = filtered_data[['Date'] + selected_columns_data]
-            temp_box = temp_box.melt(id_vars='Date', var_name='Category', value_name='Value')
+            temp_box = filtered_data[["Date"] + selected_columns_data]
+            temp_box = temp_box.melt(
+                id_vars="Date", var_name="Category", value_name="Value"
+            )
             fig_box = px.box(
                 temp_box,
-                x='Category',
-                y='Value',
+                x="Category",
+                y="Value",
                 title="Box Plots for Selected Categories",
-                labels={'Value': 'Values', 'Category': 'Categories'},
-                color='Category'
+                labels={"Value": "Values", "Category": "Categories"},
+                color="Category",
             )
             st.plotly_chart(fig_box, use_container_width=True)
         else:
-            st.info("Select categories from the actual inbound values and a valid actual date range.")
+            st.info(
+                "Select categories from the actual inbound values and a valid actual date range."
+            )
 
 elif page == "Time Series Decomposition":
     st.subheader("Time Series Decomposition")
@@ -460,18 +536,60 @@ elif page == "Time Series Decomposition":
         if selected_columns_data and not filtered_data.empty:
             selected_decomposition_col = st.selectbox(
                 "Select a Column for Time Series Decomposition",
-                options=selected_columns_data
+                options=selected_columns_data,
             )
             if selected_decomposition_col:
-                decomposition_data = filtered_data.set_index('Date')
-                decomposition_result = seasonal_decompose(decomposition_data[selected_decomposition_col], model='additive', period=7)
-                fig_decomposition = make_subplots(rows=4, cols=1, shared_xaxes=True,
-                                                  subplot_titles=("Observed", "Trend", "Seasonal", "Residual"))
-                fig_decomposition.add_trace(go.Scatter(x=decomposition_data.index, y=decomposition_result.observed, name='Observed'), row=1, col=1)
-                fig_decomposition.add_trace(go.Scatter(x=decomposition_data.index, y=decomposition_result.trend, name='Trend'), row=2, col=1)
-                fig_decomposition.add_trace(go.Scatter(x=decomposition_data.index, y=decomposition_result.seasonal, name='Seasonal'), row=3, col=1)
-                fig_decomposition.add_trace(go.Scatter(x=decomposition_data.index, y=decomposition_result.resid, name='Residual'), row=4, col=1)
-                fig_decomposition.update_layout(height=800, title_text="Time Series Decomposition")
+                decomposition_data = filtered_data.set_index("Date")
+                decomposition_result = seasonal_decompose(
+                    decomposition_data[selected_decomposition_col],
+                    model="additive",
+                    period=7,
+                )
+                fig_decomposition = make_subplots(
+                    rows=4,
+                    cols=1,
+                    shared_xaxes=True,
+                    subplot_titles=("Observed", "Trend", "Seasonal", "Residual"),
+                )
+                fig_decomposition.add_trace(
+                    go.Scatter(
+                        x=decomposition_data.index,
+                        y=decomposition_result.observed,
+                        name="Observed",
+                    ),
+                    row=1,
+                    col=1,
+                )
+                fig_decomposition.add_trace(
+                    go.Scatter(
+                        x=decomposition_data.index,
+                        y=decomposition_result.trend,
+                        name="Trend",
+                    ),
+                    row=2,
+                    col=1,
+                )
+                fig_decomposition.add_trace(
+                    go.Scatter(
+                        x=decomposition_data.index,
+                        y=decomposition_result.seasonal,
+                        name="Seasonal",
+                    ),
+                    row=3,
+                    col=1,
+                )
+                fig_decomposition.add_trace(
+                    go.Scatter(
+                        x=decomposition_data.index,
+                        y=decomposition_result.resid,
+                        name="Residual",
+                    ),
+                    row=4,
+                    col=1,
+                )
+                fig_decomposition.update_layout(
+                    height=800, title_text="Time Series Decomposition"
+                )
                 st.plotly_chart(fig_decomposition, use_container_width=True)
         else:
             st.info("Select a category and ensure a valid actual date range.")
